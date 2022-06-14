@@ -1,4 +1,4 @@
-// 1. 서버  2. 클라이언트 //
+// 1. 서버  2. 클라이언트 ///
 
 import { WebSocket } from 'ws';
 import { Chain } from '@core/blockchain/chain';

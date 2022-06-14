@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "outDir": "./dist/", //번들된 파일의 저장폴더설정
+        "esModuleInterop": true, //import 문법을 사용하게 해줌
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "strict": true,
+        "baseUrl": ".",
+        "typeRoots": ["./node_modules/@types", "./@types"], //module import할때 필요한 설정
+        "paths": {
+            "@core/*": ["src/core/*"],
+            "*": ["@types/*"] //module import할때 필요한 설정
+        }
+    },
+    "ts-node": {
+        "files": true,
+        "require": ["tsconfig-paths/register"]
+    }
+}

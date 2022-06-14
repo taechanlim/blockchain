@@ -17,7 +17,6 @@ interface Message {
 
 export class P2PServer extends Chain {
     public sockets: WebSocket[];
-
     constructor() {
         super();
         this.sockets = [];

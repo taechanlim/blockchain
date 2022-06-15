@@ -49,6 +49,7 @@ export class Block extends BlockHeader implements IBlock {
     }
 
     public static getGENESIS(): Block {
+        const GENESIS = Block.createGenesis();
         return GENESIS;
     }
 
@@ -121,6 +122,34 @@ export class Block extends BlockHeader implements IBlock {
             return { isError: true, error: '블록해쉬가 올바르지않습니다' };
 
         return { isError: false, value: _newBlock };
+    }
+
+    public static createGenesis(): Block {
+        // const GENESIS = {
+        //     version: '1.0.0',
+        //     height: 0,
+        //     hash: '0'.repeat(64),
+        //     timestamp: 1231006506,
+        //     previousHash: '0'.repeat(64),
+        //     difficulty: 0,
+        //     nonce: 0,
+        //     merkleRoot: '0'.repeat(64),
+        //     data: ['Hello First Block'],
+        // };
+        // GENESIS.merkleRoot = Block.getMerkleRoot(GENESIS.data);
+        // GENESIS.hash = Block.createBlockHash(GENESIS);
+        const GENESIS = {
+            version: '1.0.0',
+            height: 0,
+            hash: '6df9b12826161ba149f0e2a1666cce76df41b1bd5ffc333350352235236ac2a6',
+            previousHash: '0000000000000000000000000000000000000000000000000000000000000000',
+            merkleRoot: '1123E2B1E583165C7A8264434C9129E29B546AE77DCAEF752A9FA408588F641C',
+            timestamp: 1655218800000,
+            difficulty: 0,
+            nonce: 0,
+            data: ['FUCKING AWESOME GENESIS'],
+        };
+        return GENESIS;
     }
 }
 

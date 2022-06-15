@@ -1,6 +1,7 @@
 // core / index
 import { BlockChain } from '@core/index';
 import { P2PServer } from './src/serve/p2p';
+import peers from './peer.json';
 import express from 'express';
 
 const app = express();
@@ -15,13 +16,13 @@ app.get('/', (req, res) => {
 
 //블럭내용
 app.get('/chains', (req, res) => {
-    res.json(bc.chain.getChain());
+    res.json(ws.getChain());
 });
 
 //블럭채굴
 app.post('/mineBlock', (req, res) => {
     const { data } = req.body; //data값은 []로 던져줘야함
-    const newBlock = bc.chain.addBlock(data);
+    const newBlock = ws.addBlock(data);
     if (newBlock.isError) return res.status(500).json(newBlock.error);
 
     res.json(newBlock.value);
@@ -30,6 +31,17 @@ app.post('/mineBlock', (req, res) => {
 app.post('/addToPeer', (req, res) => {
     const { peer } = req.body;
     ws.connectTopeer(peer);
+});
+
+app.post('/addPeers', (req, res) => {
+    peers.forEach((peer) => {
+        ws.connectTopeer(peer);
+    });
+});
+
+app.get('/peers', (req, res) => {
+    const sockets = ws.getSockets().map((s: any) => s._socket.remoteAddress + ':' + s._socket.remotePort);
+    res.json(sockets);
 });
 
 app.listen(3000, () => {

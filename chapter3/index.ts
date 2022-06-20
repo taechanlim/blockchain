@@ -3,6 +3,8 @@ import { BlockChain } from '@core/index';
 import { P2PServer } from './src/serve/p2p';
 import peers from './peer.json';
 import express from 'express';
+import { ReceivedTx } from '@core/wallet/wallet';
+import { Wallet } from '@core/wallet/wallet';
 
 const app = express();
 const ws = new P2PServer();
@@ -17,7 +19,7 @@ app.use((req, res, next) => {
 
     const [userid, userpw] = Buffer.from(baseAuth, 'base64').toString().split(':');
     if (userid !== 'web7722' || userpw !== '1234') return res.status(401).send();
-    console.log(userid, userpw);
+    // console.log(userid, userpw);
 
     next();
 });
@@ -54,6 +56,17 @@ app.post('/addPeers', (req, res) => {
 app.get('/peers', (req, res) => {
     const sockets = ws.getSockets().map((s: any) => s._socket.remoteAddress + ':' + s._socket.remotePort);
     res.json(sockets);
+});
+
+app.post('/sendTransaction', (req, res) => {
+    try {
+        const receivedTx: ReceivedTx = req.body;
+        Wallet.sendTransaction(receivedTx);
+    } catch (e) {
+        if (e instanceof Error) console.error(e.message);
+    }
+
+    res.json([]);
 });
 
 app.listen(3000, () => {

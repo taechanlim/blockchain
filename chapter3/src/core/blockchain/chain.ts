@@ -3,9 +3,11 @@ import { DIFFICULTY_ADJUSTMENT_INTERVAL } from '@core/config';
 
 export class Chain {
     public blockchain: Block[];
+    // public UnspentTxOuts:UnspentTxOuts[]
 
     constructor() {
         this.blockchain = [Block.getGENESIS()];
+        // this.UnspentTxOuts = []
     }
 
     public getChain(): Block[] {

@@ -1,3 +1,5 @@
+import { Transaction } from '@core/transaction/transaction';
+import { UnspentTxOut } from '@core/transaction/unspentTxOut';
 import { verify } from 'crypto';
 import { SHA256 } from 'crypto-js';
 import elliptic from 'elliptic';
@@ -19,14 +21,14 @@ export class Wallet {
     public balance: number;
     public signature: Signature;
 
-    constructor(_sender: string, _signature: Signature) {
+    constructor(_sender: string, _signature: Signature, UnspentTxOuts: UnspentTxOut[]) {
         this.publicKey = _sender;
-        this.account = this.getAccount();
-        this.balance = 0;
+        this.account = this.getAccount(this.publicKey);
+        this.balance = Wallet.getBalance(this.account, UnspentTxOuts);
         this.signature = _signature;
     }
 
-    static sendTransaction(_receivedTx: ReceivedTx) {
+    static sendTransaction(_receivedTx: any, UnspentTxOuts: UnspentTxOuts[]): Transaction {
         //서명 검증
         const verify = Wallet.getVerify(_receivedTx);
         if (verify.isError) throw new Error(verify.error);
@@ -34,10 +36,15 @@ export class Wallet {
         // console.log('isError', verify.isError);
 
         //보내는 사람의 지갑정보 최신화
-        const myWallet = new this(_receivedTx.sender, _receivedTx.signature);
+        const myWallet = new this(_receivedTx.sender, _receivedTx.signature, UnspentTxOuts);
 
         //balance Check!(잔액이 올바르게 있는지 확인)
+        if (myWallet.balance < _receivedTx.amount) throw new Error('잔액이 모자랍니다');
+
         //transaction 만드는 과정
+        const myUTXO: UnspentTxOut[] = UnspentTxOut.getMyUnspentTxOuts(myWallet.account, UnspentTxOuts);
+        const tx: Transaction = Transaction.createTransaction(_receivedTx, myUTXO);
+        return tx;
     }
 
     static getVerify(_receivedTx: ReceivedTx): Failable<undefined, string> {
@@ -53,7 +60,13 @@ export class Wallet {
         return { isError: false, value: undefined };
     }
 
-    getAccount(): string {
-        return Buffer.from(this.publicKey).slice(26).toString();
+    static getAccount(publicKey: string): string {
+        return Buffer.from(publicKey).slice(26).toString();
+    }
+
+    static getBalance(_account: string, _UnspentTxOuts: IUnspentTxOut[]): number {
+        return _UnspentTxOuts.filter((v) => {
+            return v.account === _account;
+        });
     }
 }

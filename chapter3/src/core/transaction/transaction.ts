@@ -1,7 +1,7 @@
 import { SHA256 } from 'crypto-js';
 import { TxIn } from './txin';
 import { TxOut } from './txout';
-import { UnspentTxOut } from './unspentTxOut';
+import { unspentTxOut } from './unspentTxOut';
 
 export class Transaction {
     public hash: string;
@@ -15,16 +15,28 @@ export class Transaction {
     }
 
     createTransactionHash(): string {
-        const txOutContent: string = this.txOuts.map((v) => Object.values(v).join('')).join('');
-        const txInContent: string = this.txIns.map((v) => Object.values(v).join('')).join('');
+        const txoutContent: string = this.txOuts.map((v) => Object.values(v).join('')).join('');
+        const txinContent: string = this.txIns.map((v) => Object.values(v).join('')).join('');
 
-        return SHA256(txOutContent + txInContent).toString();
+        return SHA256(txoutContent + txinContent).toString();
     }
 
-    createUTXO(): UnspentTxOut[] {
-        let result: UnspentTxOut[] = this.txOuts.map((txout: TxOut, index: number) => {
-            return new UnspentTxOut(this.hash, index, txout.account, txout.amount);
+    createUTXO(): unspentTxOut[] {
+        return this.txOuts.map((txout: TxOut, index: number) => {
+            return new unspentTxOut(this.hash, index, txout.account, txout.amount);
         });
-        return result;
+    }
+
+    static createTransaction(_receviedTx: any, myUTXO: unspentTxOut[]): Transaction {
+        // TODO : _receviedTx any부분 수정
+
+        // utxo -> txin[]
+        const { sum, txins } = TxIn.createTxIns(_receviedTx, myUTXO);
+
+        // txin -> txout[] // createTxOuts
+        const txouts: TxOut[] = TxOut.createTxOuts(sum, _receviedTx);
+
+        const tx = new Transaction(txins, txouts);
+        return tx;
     }
 }

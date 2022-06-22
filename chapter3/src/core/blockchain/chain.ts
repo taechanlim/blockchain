@@ -1,13 +1,25 @@
-import { Block } from './block';
+import { Block } from '@core/blockchain/block';
 import { DIFFICULTY_ADJUSTMENT_INTERVAL } from '@core/config';
+import { Transaction } from '@core/transaction/transaction';
+import { TxIn } from '@core/transaction/txin';
+import { TxOut } from '@core/transaction/txout';
+import { unspentTxOut } from '@core/transaction/unspentTxOut';
 
 export class Chain {
-    public blockchain: Block[];
-    // public UnspentTxOuts:UnspentTxOuts[]
+    private blockchain: Block[];
+    private unspentTxOuts: unspentTxOut[];
 
     constructor() {
         this.blockchain = [Block.getGENESIS()];
-        // this.UnspentTxOuts = []
+        this.unspentTxOuts = [];
+    }
+
+    public getUnspentTxOuts(): unspentTxOut[] {
+        return this.unspentTxOuts;
+    }
+
+    public appendUTXO(utxo: unspentTxOut[]): void {
+        this.unspentTxOuts.push(...utxo);
     }
 
     public getChain(): Block[] {
@@ -22,81 +34,123 @@ export class Chain {
         return this.blockchain[this.blockchain.length - 1];
     }
 
-    public addBlock(data: string[]): Failable<Block, string> {
-        // TODO 내가 앞으로 생성할 블럭의 높이값을 가져올수 있는가?
-        // 현재 높이값 - block interval  = 음수값
-        // 난이도를 구해야함
-        // 생성시간을 구하는것이 1차목표
-        const previousBlock = this.getLatestBlock();
-        const adjustmentBlock: Block = this.getAdjustmentBlock(); //높이가 -10짜리 블럭만 가져오는함수
-        const newBlock = Block.generateBlock(previousBlock, data, adjustmentBlock);
-        const isValid = Block.isValidNewBlock(newBlock, previousBlock);
+    public miningBlock(_account: string): Failable<Block, string> {
+        // TODO : Transaction 만들는 코드를넣넣고.
 
-        if (isValid.isError) return { isError: true, error: isValid.error };
+        const txin: ITxIn = new TxIn('', this.getLatestBlock().height + 1);
+        const txout: ITxOut = new TxOut(_account, 50);
+        const transaction: Transaction = new Transaction([txin], [txout]);
+        const utxo = transaction.createUTXO();
+        this.appendUTXO(utxo);
+        // TODO : addBlock
+        return this.addBlock([transaction]);
+    }
+
+    public addBlock(data: ITransaction[]): Failable<Block, string> {
+        // TODO : 내가 앞으로 생성할블록의 높이값을 가져올수있는가?
+        // 현재높이값, -  block interval = 음수값
+        // 난이도를 구해야함.
+        // 생성시간을 구하는것.
+        const previousBlock = this.getLatestBlock(); // 2  3번째블럭에들어갈 Transaction
+        const adjustmentBlock: Block = this.getAdjustmentBlock(); // -10 Block 구함
+        const newBlock = Block.generateBlock(previousBlock, data, adjustmentBlock);
+        const isVaild = Block.isValidNewBlock(newBlock, previousBlock);
+
+        if (isVaild.isError) return { isError: true, error: isVaild.error };
 
         this.blockchain.push(newBlock);
-
         return { isError: false, value: newBlock };
     }
-    public addToChain(_receivedBlock: Block): Failable<undefined, string> {
-        const isValid = Block.isValidNewBlock(_receivedBlock, this.getLatestBlock());
-        if (isValid.isError) return { isError: true, error: isValid.error };
 
-        this.blockchain.push(_receivedBlock);
+    public addToChain(_receviedBlock: Block): Failable<undefined, string> {
+        const isVaild = Block.isValidNewBlock(_receviedBlock, this.getLatestBlock());
+        if (isVaild.isError) return { isError: true, error: isVaild.error };
+
+        this.blockchain.push(_receviedBlock);
         return { isError: false, value: undefined };
     }
 
     public isValidChain(_chain: Block[]): Failable<undefined, string> {
-        //제네시스블록을 검사하는 코드가 들어가면됨
+        // TODO : 제네시스블록을 검사하는 코드가 들어가면 될거같습니다.
         const genesis = _chain[0];
 
-        //나머지 체인에대한 코드부분
         for (let i = 1; i < _chain.length; i++) {
             const newBlock = _chain[i];
             const previousBlock = _chain[i - 1];
-            const isValid = Block.isValidNewBlock(newBlock, previousBlock);
-            if (isValid.isError) return { isError: true, error: isValid.error };
+            const isVaild = Block.isValidNewBlock(newBlock, previousBlock);
+            if (isVaild.isError) return { isError: true, error: isVaild.error };
         }
 
         return { isError: false, value: undefined };
     }
 
-    public replaceChain(receivedChain: Block[]): Failable<undefined, string> {
-        //내 체인과 상대방 체인에 대해서 검사
-        //1.'받은 체인의 길이 === 0' (이러면 제네시스밖에없다는 뜻,내 체인이 더 길다) 면 return
-        //2.'받은 체인의 최신블록의 높이 < 내 체인의 최신블록의 높이' 면 return
-        //3.'받은 체인의 최신블록의 이전 해시 === 내 체인의 최신블록의 해시' 면 return
-        // 위 3조건이 충족이 안되면 내 체인이 더 짧다는 의미(내 체인을 상대꺼로 바꿔야함)
+    updateUTXO(tx: Transaction) {
+        const consumedTxOuts = tx.txIns;
+        const newUnspentTxOuts = tx.txOuts;
+        const unspentTxOuts: unspentTxOut[] = this.getUnspentTxOuts();
 
-        const lastestReceivedBlock: Block = receivedChain[receivedChain.length - 1]; //->상대체인의 최신블럭
-        const lastestBlock: Block = this.getLatestBlock(); //->내체인의 최신블럭
+        const consumed = tx.txIns.map((txin) => {
+            return new unspentTxOut(txin.txOutId, txin.txOutIndex, '', 0);
+        });
 
-        if (lastestReceivedBlock.height === 0) {
-            return { isError: true, error: '받은 최신블록이 제네시스블록입니다' };
+        const consumedTx = unspentTxOuts.filter((utxo) => consumed.includes(utxo));
+
+        // const consumedTxOuts = _tx.txIns
+        // const newUnspentTxOuts = _tx.txOuts
+
+        // let utxo = this.getUnspentTxOuts()
+
+        // consumedTxOuts.reduce((acc: unspentTxOut[], _v) => {
+        //     utxo = acc.filter((v) => {
+        //         console.log(v, _v)
+        //         return v.txOutId === _v.txOutId
+        //     })
+
+        //     return utxo
+        // }, utxo)
+
+        // console.log(utxo)
+        // return utxo
+        // .filter((utxo: unspentTxOut) => {})
+    }
+
+    replaceChain(receivedChain: Block[]): Failable<undefined, string> {
+        // 내체인과 상대방체인에 대해서 검사하는
+        // 1. 받은체인의 최신블록.height === 0 (이새끼 제네시스밖에없음) return
+        // 2. 받은체인의 최신블록.height <= 내체인최신블록.height return
+        // 3. 받은체인의 최신블록.previousHash === 내체인의 최신블록.hash return
+
+        // 4. 내체인이 더짧다. 다바꾸자.
+        const latestReceivedBlock: Block = receivedChain[receivedChain.length - 1];
+        const latestBlock: Block = this.getLatestBlock();
+        if (latestReceivedBlock.height === 0) {
+            return { isError: true, error: '받은 최신블록이 제네시스 블록입니다.' };
         }
-        if (lastestReceivedBlock.height <= lastestBlock.height) {
-            return { isError: true, error: '자신의 체인길이가 더 길거나 같습니다' };
+        if (latestReceivedBlock.height <= latestBlock.height) {
+            return { isError: true, error: '자신의 블록이 길거나 같습니다.' };
         }
-        if (lastestReceivedBlock.previousHash === lastestBlock.hash) {
-            //addToChain()
-            return { isError: true, error: '블록이 하나만큼 모자랍니다' };
+        if (latestReceivedBlock.previousHash === latestBlock.hash) {
+            // addToChain()
+            return { isError: true, error: '블록이 하나만큼 모자릅니다.' };
         }
 
-        //체인을 바꿔주는 코드를 작성.
+        // 체인을 바꿔주는 코드를 작성하면됨.
         this.blockchain = receivedChain;
 
         return { isError: false, value: undefined };
     }
 
-    //getAdjustmentBlock
-    //생성기준으로 블럭높이가 -10 짜리 구해오기
+    // 체인검증하는
+
+    /**
+     * 생성기준으로 블럭높이가 -10 짜리 구해오기.
+     */
     public getAdjustmentBlock() {
-        //현재 마지막블럭에서 -10 (DIFFICULTY_ADJUSTMENT_INTERVAL)
-        const currentLength = this.getLength();
+        const currentLength = this.getLength(); // 1
         const adjustmentBlock: Block =
             currentLength < DIFFICULTY_ADJUSTMENT_INTERVAL
                 ? Block.getGENESIS()
                 : this.blockchain[currentLength - DIFFICULTY_ADJUSTMENT_INTERVAL];
-        return adjustmentBlock; //블럭자체를 반환
+        return adjustmentBlock; // 블럭자체를 반환
     }
 }

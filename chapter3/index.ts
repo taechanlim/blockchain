@@ -1,55 +1,60 @@
-// core / index
 import { BlockChain } from '@core/index';
-import { P2PServer } from './src/serve/p2p';
+import { P2PServer, Message, MessageType } from './src/serve/p2p';
 import peers from './peer.json';
 import express from 'express';
-import { ReceivedTx } from '@core/wallet/wallet';
+import { ReceviedTx } from '@core/wallet/wallet';
 import { Wallet } from '@core/wallet/wallet';
 
 const app = express();
 const ws = new P2PServer();
-const bc = new BlockChain();
 
 app.use(express.json());
 
-//요청 url이 'http://web7722:1234@localhost:3000'일때
 app.use((req, res, next) => {
     const baseAuth: string = (req.headers.authorization || '').split(' ')[1];
     if (baseAuth === '') return res.status(401).send();
 
     const [userid, userpw] = Buffer.from(baseAuth, 'base64').toString().split(':');
     if (userid !== 'web7722' || userpw !== '1234') return res.status(401).send();
-    // console.log(userid, userpw);
 
     next();
 });
 
 app.get('/', (req, res) => {
-    res.send('tctcchain');
+    res.send('ingchain');
 });
 
-//블럭내용
+// 블록내용
 app.get('/chains', (req, res) => {
     res.json(ws.getChain());
 });
 
-//블럭채굴
+// 블록채굴 ->
 app.post('/mineBlock', (req, res) => {
-    const { data } = req.body; //data값은 []로 던져줘야함
-    const newBlock = ws.addBlock(data);
-    if (newBlock.isError) return res.status(500).json(newBlock.error);
+    const { data } = req.body;
+    // Block -> data 내용을 채우기위해서.
+    // Transaction 객체를 채우기위한 정보로 account
 
+    const newBlock = ws.miningBlock(data);
+
+    if (newBlock.isError) return res.status(500).send(newBlock.error);
+    const msg: Message = {
+        type: MessageType.latest_block,
+        payload: {},
+    };
+    ws.broadcast(msg);
     res.json(newBlock.value);
 });
 
 app.post('/addToPeer', (req, res) => {
     const { peer } = req.body;
-    ws.connectTopeer(peer);
+
+    ws.connectToPeer(peer);
 });
 
-app.post('/addPeers', (req, res) => {
+app.get('/addPeers', (req, res) => {
     peers.forEach((peer) => {
-        ws.connectTopeer(peer);
+        ws.connectToPeer(peer);
     });
 });
 
@@ -59,9 +64,30 @@ app.get('/peers', (req, res) => {
 });
 
 app.post('/sendTransaction', (req, res) => {
+    /* blockchain server
+    {
+        sender: '0376f781b427b7ff84f39bb60b10187335f40af237c8fe4764bdabbf6f34c340ff',
+        received: '90efc23505a72d5a7062918585f75994f8d38df6',
+        amount: 10,
+        signature: Signature {
+            r: BN { negative: 0, words: [Array], length: 10, red: null },
+            s: BN { negative: 0, words: [Array], length: 10, red: null },
+            recoveryParam: 1
+        }
+    }
+    sendTransaction 
+    */
     try {
-        const receivedTx: ReceivedTx = req.body;
-        Wallet.sendTransaction(receivedTx);
+        const receivedTx: ReceviedTx = req.body;
+        console.log(receivedTx);
+
+        Wallet.sendTransaction(receivedTx, ws.getUnspentTxOuts());
+        // txins
+        // txouts
+
+        // utxo:[] - txins
+        // utxos:[] + txouts
+        // UTXO내용을 최신화하는 함수를 ( 트랜잭션 )
     } catch (e) {
         if (e instanceof Error) console.error(e.message);
     }
@@ -70,8 +96,6 @@ app.post('/sendTransaction', (req, res) => {
 });
 
 app.listen(3000, () => {
-    console.log('서버시작');
+    console.log('서버시작 3000');
     ws.listen();
 });
-
-//npx ts-node index.ts

@@ -63,6 +63,17 @@ app.get('/peers', (req, res) => {
     res.json(sockets);
 });
 
+app.post('/getBalance', (req, res) => {
+    const { account } = req.body;
+
+    const balance = Wallet.getBalance(account, ws.getUnspentTxOuts());
+    // console.log(balance);
+
+    res.json({
+        balance,
+    });
+});
+
 app.post('/sendTransaction', (req, res) => {
     /* blockchain server
     {
@@ -79,12 +90,13 @@ app.post('/sendTransaction', (req, res) => {
     */
     try {
         const receivedTx: ReceviedTx = req.body;
-        console.log(receivedTx);
+        // console.log(receivedTx);
 
-        Wallet.sendTransaction(receivedTx, ws.getUnspentTxOuts());
+        const tx = Wallet.sendTransaction(receivedTx, ws.getUnspentTxOuts());
         // txins
         // txouts
-
+        ws.appendTransactionPool(tx);
+        ws.updateUTXO(tx);
         // utxo:[] - txins
         // utxos:[] + txouts
         // UTXO내용을 최신화하는 함수를 ( 트랜잭션 )
@@ -93,6 +105,14 @@ app.post('/sendTransaction', (req, res) => {
     }
 
     res.json([]);
+});
+
+app.get('/transaction_pool', (req, res) => {
+    res.send(ws.getTransactionPool());
+});
+
+app.get('/unspentTransaction', (req, res) => {
+    res.send(ws.getUnspentTxOuts());
 });
 
 app.listen(3000, () => {

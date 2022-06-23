@@ -42,11 +42,17 @@ app.post('/walletList', (req, res) => {
 });
 
 // view
-app.get('/wallet/:account', (req, res) => {
+app.get('/wallet/:account', async (req, res) => {
     const { account } = req.params;
     console.log('wallet', account);
     const privateKey = Wallet.getWalletPrivateKey(account); // private Key
-    res.json(new Wallet(privateKey));
+    const myWallet = new Wallet(privateKey);
+
+    const response = await request.post('/getBalance', { account });
+    console.log(response.data.balance);
+    myWallet.balance = response.data.balance;
+
+    res.json(myWallet);
 });
 
 // sendTrnasaction

@@ -37,10 +37,22 @@ describe('Chain 함수체크', () => {
         try {
             const tx = Wallet.sendTransaction(receivedTx, ws.getUnspentTxOuts());
             // Transaction 내용을가지고 UTXO 를 최신화하기. updateUTXO
+            console.log(ws.getUnspentTxOuts());
+            ws.appendTransactionPool(tx);
             ws.updateUTXO(tx);
+            console.log(ws.getTransactionPool());
         } catch (e) {
             if (e instanceof Error) console.error(e.message);
         }
+    });
+
+    it('채굴테스트', () => {
+        try {
+            ws.miningBlock('10187335f40af237c8fe4764bdabbf6f34c340ff');
+            console.log(ws.getTransactionPool());
+            console.log(ws.getChain());
+            console.log('2개', ws.getChain()[7]);
+        } catch (e) {}
     });
 
     it('트랜잭션 검증', () => {

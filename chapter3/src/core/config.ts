@@ -13,8 +13,8 @@ export const GENESIS: IBlock = {
     hash: '0'.repeat(64),
     timestamp: 1231006506,
     previousHash: '0'.repeat(64),
+    merkleRoot: '0'.repeat(64),
     difficulty: 0,
     nonce: 0,
-    merkleRoot: '0'.repeat(64),
-    data: ['Hello First Block'],
+    data: [],
 };

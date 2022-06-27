@@ -100,6 +100,12 @@ app.post('/sendTransaction', (req, res) => {
         // utxo:[] - txins
         // utxos:[] + txouts
         // UTXO내용을 최신화하는 함수를 ( 트랜잭션 )
+        const message: Message = {
+            type: MessageType.receivedTx,
+            payload: tx,
+        };
+
+        ws.broadcast(message);
     } catch (e) {
         if (e instanceof Error) console.error(e.message);
     }

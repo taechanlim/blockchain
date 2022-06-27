@@ -97,6 +97,9 @@ export class Chain {
 
         this.blockchain.push(newBlock);
 
+        newBlock.data.forEach((_tx: ITransaction) => {
+            this.updateUTXO(_tx);
+        });
         this.updateTransactionPool(newBlock);
         return { isError: false, value: newBlock };
     }
@@ -135,17 +138,28 @@ export class Chain {
             return new unspentTxOut(tx.hash, index, txout.account, txout.amount);
         });
 
-        this.unspentTxOuts = unspentTxOuts
-            .filter((_v) => {
-                const bool = tx.txIns.find((v) => {
-                    return _v.txOutId === v.txOutId && _v.txOutIndex === v.txOutIndex;
+        const tmp = unspentTxOuts
+            .filter((utxo: unspentTxOut) => {
+                const bool = tx.txIns.find((txIn: TxIn) => {
+                    return utxo.txOutId === txIn.txOutId && utxo.txOutIndex === txIn.txOutIndex;
                 });
 
                 return !bool;
             })
             .concat(newUnspentTxOuts);
 
-        this.appendTransactionPool(tx);
+        let unspentTmp: unspentTxOut[] = [];
+
+        const result = tmp.reduce((acc, utxo) => {
+            const find = acc.find(({ txOutId, txOutIndex }) => {
+                return txOutId === utxo.txOutId && txOutIndex == utxo.txOutIndex;
+            });
+            if (!find) acc.push(utxo);
+            return acc;
+        }, unspentTmp);
+
+        this.unspentTxOuts = result;
+        // this.appendTransactionPool(tx);
     }
 
     replaceChain(receivedChain: Block[]): Failable<undefined, string> {

@@ -5,6 +5,7 @@ export enum MessageType {
     latest_block = 0,
     all_block = 1,
     receivedChain = 2,
+    receivedTx = 3,
 }
 
 export interface Message {
@@ -84,6 +85,29 @@ export class P2PServer extends Chain {
                 case MessageType.receivedChain: {
                     const receivedChain: IBlock[] = result.payload;
                     this.handleChainResponse(receivedChain);
+                    break;
+                }
+
+                case MessageType.receivedTx: {
+                    const receivedTransaction: ITransaction = result.payload;
+                    if (receivedTransaction === null) break;
+
+                    const withTransaction = this.getTransactionPool().find((_tx: ITransaction) => {
+                        return _tx.hash === receivedTransaction.hash;
+                    });
+
+                    if (!withTransaction) {
+                        //받은 트랜잭션 내용이 내 트랜잭션풀에 없다면
+                        this.appendTransactionPool(receivedTransaction);
+                    }
+
+                    const message: Message = {
+                        type: MessageType.receivedTx,
+                        payload: receivedTransaction,
+                    };
+
+                    this.broadcast(message);
+
                     break;
                 }
             }
